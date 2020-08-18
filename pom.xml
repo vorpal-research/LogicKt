@@ -5,7 +5,7 @@
 
     <groupId>ru.spbstu</groupId>
     <artifactId>Uni</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>ru.spbstu Uni</name>
@@ -91,5 +91,13 @@
             <url>https://jcenter.bintray.com/</url>
         </repository>
     </repositories>
+
+    <distributionManagement>
+        <repository>
+            <id>bintray-vorpal-research-kotlin-maven</id>
+            <name>vorpal-research-kotlin-maven</name>
+            <url>https://api.bintray.com/maven/vorpal-research/kotlin-maven/${artifactId}/;publish=1</url>
+        </repository>
+    </distributionManagement>
 
 </project>
