@@ -1,4 +1,4 @@
-package ru.spbstu
+package ru.spbstu.logic
 
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentHashMapOf
@@ -53,5 +53,6 @@ class PersistentDisjointSet<T>(
         }
     }
 
-    fun copy(): PersistentDisjointSet<T> = PersistentDisjointSet(links.build().builder(), sizes.build().builder())
+    fun copy(): PersistentDisjointSet<T> =
+        PersistentDisjointSet(links.build().builder(), sizes.build().builder())
 }

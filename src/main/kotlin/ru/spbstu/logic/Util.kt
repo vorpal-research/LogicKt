@@ -1,4 +1,4 @@
-package ru.spbstu
+package ru.spbstu.logic
 
 infix fun <T> List<T>.identityEquals(that: List<T>): Boolean {
     if(size != that.size) return false

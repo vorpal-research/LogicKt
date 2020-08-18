@@ -1,4 +1,4 @@
-package ru.spbstu
+package ru.spbstu.logic
 
 sealed class SStream<out T> : Sequence<T>
 object SSNil : SStream<Nothing>() {
@@ -56,7 +56,11 @@ infix fun <T> SStream<T>.mix(that: () -> SStream<T>): SStream<T> = when (this) {
 
 fun <T, U> SStream<T>.map(body: (T) -> U): SStream<U> = when (this) {
     is SSNil -> SSNil
-    is SSCons -> SSCons(body(head)) { tail.map(body) }
+    is SSCons -> SSCons(body(head)) {
+        tail.map(
+            body
+        )
+    }
 }
 
 fun <T, U> SStream<T>.mapNotNull(body: (T) -> U?): SStream<U> = when (this) {
@@ -66,7 +70,8 @@ fun <T, U> SStream<T>.mapNotNull(body: (T) -> U?): SStream<U> = when (this) {
         while (current is SSCons) {
             val bhead = body(current.head)
             if (bhead != null) {
-                return@run SSCons(bhead) { tail.mapNotNull(body) }
+                val ctail = current.tail
+                return@run SSCons(bhead) { ctail.mapNotNull(body) }
             }
             current = current.tail
         }

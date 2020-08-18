@@ -1,4 +1,4 @@
-package ru.spbstu
+package ru.spbstu.logic
 
 import ru.spbstu.wheels.hashCombine
 import kotlin.reflect.KProperty
@@ -8,6 +8,12 @@ sealed class Expr {
     fun vars(): Set<Var> = vars(mutableSetOf())
 
     abstract fun subst(map: Map<Var, Expr>): Expr
+}
+
+object Invalid: Expr() {
+    override fun <C : MutableCollection<Var>> vars(collector: C): C = collector
+    override fun subst(map: Map<Var, Expr>): Expr = this
+    override fun toString(): String = "<INVALID>"
 }
 
 sealed class Atom : Expr()
@@ -42,6 +48,10 @@ data class Constant<T>(val value: T) : Atom() {
     override fun subst(map: Map<Var, Expr>) = this
 
     override fun toString(): String = "$value"
+
+    companion object {
+        fun Symbol(name: String): Constant<Symbol> = Symbol.get(name)
+    }
 }
 
 data class MuExpr(val base: Var, val body: Expr) : Expr() {
@@ -68,7 +78,8 @@ sealed class Function {
 
 data class Function1(override val name: String) : Function() {
     companion object {
-        operator fun getValue(self: Any?, prop: KProperty<*>): Function1 = Function1(prop.name)
+        operator fun getValue(self: Any?, prop: KProperty<*>): Function1 =
+            Function1(prop.name)
     }
 
     override fun toString(): String = super.toString()
@@ -76,7 +87,8 @@ data class Function1(override val name: String) : Function() {
 
 data class Function2(override val name: String) : Function() {
     companion object {
-        operator fun getValue(self: Any?, prop: KProperty<*>): Function2 = Function2(prop.name)
+        operator fun getValue(self: Any?, prop: KProperty<*>): Function2 =
+            Function2(prop.name)
     }
 
     override fun toString(): String = super.toString()
@@ -84,7 +96,8 @@ data class Function2(override val name: String) : Function() {
 
 data class Function3(override val name: String) : Function() {
     companion object {
-        operator fun getValue(self: Any?, prop: KProperty<*>): Function3 = Function3(prop.name)
+        operator fun getValue(self: Any?, prop: KProperty<*>): Function3 =
+            Function3(prop.name)
     }
 
     override fun toString(): String = super.toString()
@@ -92,7 +105,8 @@ data class Function3(override val name: String) : Function() {
 
 data class Function4(override val name: String) : Function() {
     companion object {
-        operator fun getValue(self: Any?, prop: KProperty<*>): Function4 = Function4(prop.name)
+        operator fun getValue(self: Any?, prop: KProperty<*>): Function4 =
+            Function4(prop.name)
     }
 
     override fun toString(): String = super.toString()
@@ -165,16 +179,19 @@ operator fun ProjectedFunction1.plus(rhv: ProjectedFunction1): ProjectedFunction
     }
 }
 
-fun ProjectedApp(f: ProjectedFunction1, arg: Expr): Expr? {
+fun ProjectedApp(f: ProjectedFunction1, arg: Expr): Expr {
     return when (arg) {
         is Var -> ProjectedApp(f = f, v = arg)
         is Constant<*> -> try {
             Constant(f.invoke(arg.value))
         } catch (ex: IllegalArgumentException) {
-            null
+            Invalid
         }
-        is ProjectedApp -> ProjectedApp(f + arg.f, arg.v)
-        else -> null
+        is ProjectedApp -> ProjectedApp(
+            f + arg.f,
+            arg.v
+        )
+        else -> Invalid
     }
 }
 
@@ -192,8 +209,21 @@ data class ProjectedApp constructor(val f: ProjectedFunction1, val v: Var) : App
         return collector
     }
 
-    override fun subst(map: Map<Var, Expr>) = ProjectedApp(f = f, arg = v.subst(map)) ?: Constant(null)
+    override fun subst(map: Map<Var, Expr>) = ProjectedApp(
+        f = f,
+        arg = v.subst(map)
+    ) ?: Constant(null)
 
     override fun toString(): String = "$f[$v]"
 }
 
+class Symbol private constructor(val name: String) {
+    override fun equals(other: Any?): Boolean = other is Symbol && name == other.name
+    override fun hashCode(): Int = name.hashCode()
+    override fun toString(): String = name
+
+    companion object {
+        fun get(name: String): Constant<Symbol> = Constant(Symbol(name))
+        operator fun getValue(thisRef: Any?, prop: KProperty<*>): Expr = get(prop.name)
+    }
+}
