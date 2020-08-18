@@ -3,6 +3,7 @@ package ru.spbstu
 import kotlinx.collections.immutable.*
 import ru.spbstu.wheels.Stack
 import ru.spbstu.wheels.stack
+import java.lang.Exception
 import kotlin.reflect.KProperty
 
 class System(
@@ -78,13 +79,15 @@ class System(
             is AppBase -> {
                 val maybeAlpha = BoundVar(nesting + 1)
                 substitutions[value] = maybeAlpha
-                val maybeNewArgs = value.args.map { expand(it, substitutions, renaming, marked, cache, nesting + 1) }
+                val freshCache = cache.toMutableMap()
+                val maybeNewArgs = value.args.map { expand(it, substitutions, renaming, marked, freshCache, nesting + 1) }
                 var res = value
                 if (!(maybeNewArgs identityEquals value.args)) res = res.copy(args = maybeNewArgs) ?: Constant(null)
                 if (maybeAlpha in marked) {
                     res = MuExpr(maybeAlpha, res)
-                    cache.clear()
+                    freshCache.clear()
                 }
+                cache.putAll(freshCache)
                 marked.remove(maybeAlpha)
                 substitutions.remove(value)
                 res
@@ -395,8 +398,9 @@ fun GoalScope.match(
 ) {
     val choices: MutableList<GoalScope.() -> Unit> = mutableListOf()
     tabler { arg, body ->
-        choices += {
+        choices += choice@{
             equals(arg1, asExpr(arg))
+            if (currentScope.currentSolutions == SSNil) return@choice
             body()
         }
     }
@@ -411,9 +415,10 @@ fun GoalScope.match(
 ) {
     val choices: MutableList<GoalScope.() -> Unit> = mutableListOf()
     tabler { g1, g2, body ->
-        choices += {
+        choices += choice@{
             equals(arg1, asExpr(g1))
             equals(arg2, asExpr(g2))
+            if (currentScope.currentSolutions == SSNil) return@choice
             body()
         }
     }
@@ -429,10 +434,11 @@ fun GoalScope.match(
 ) {
     val choices: MutableList<GoalScope.() -> Unit> = mutableListOf()
     tabler { g1, g2, g3, body ->
-        choices += {
+        choices += choice@{
             equals(arg1, asExpr(g1))
             equals(arg2, asExpr(g2))
             equals(arg3, asExpr(g3))
+            if (currentScope.currentSolutions == SSNil) return@choice
             body()
         }
     }
@@ -449,11 +455,12 @@ fun GoalScope.match(
 ) {
     val choices: MutableList<GoalScope.() -> Unit> = mutableListOf()
     tabler { g1, g2, g3, g4, body ->
-        choices += {
+        choices += choice@{
             equals(arg1, asExpr(g1))
             equals(arg2, asExpr(g2))
             equals(arg3, asExpr(g3))
             equals(arg4, asExpr(g4))
+            if (currentScope.currentSolutions == SSNil) return@choice
             body()
         }
     }
@@ -471,12 +478,13 @@ fun GoalScope.match(
 ) {
     val choices: MutableList<GoalScope.() -> Unit> = mutableListOf()
     tabler { g1, g2, g3, g4, g5, body ->
-        choices += {
+        choices += choice@{
             equals(arg1, asExpr(g1))
             equals(arg2, asExpr(g2))
             equals(arg3, asExpr(g3))
             equals(arg4, asExpr(g4))
             equals(arg5, asExpr(g5))
+            if (currentScope.currentSolutions == SSNil) return@choice
             body()
         }
     }
@@ -489,6 +497,14 @@ data class Solution(val system: System, val variables: Set<Var>) {
         val cache = mutableMapOf<Expr, Expr>()
         return variables.joinToString("\n") {
             "$it = " + system.expand(it, renaming = renaming, cache = cache)
+        }
+    }
+
+    operator fun iterator(): Iterator<Pair<Var, Expr>> = iterator {
+        val renaming = mutableMapOf<Var, Var>()
+        val cache = mutableMapOf<Expr, Expr>()
+        for (v in variables) {
+            yield(v to system.expand(v, renaming = renaming, cache = cache))
         }
     }
 }
@@ -506,7 +522,7 @@ val natZero = Constant("zero")
 val natBits by Function2
 val zeroBit = Constant('0')
 val oneBit = Constant('1')
-val GoalScope.natOne: Expr get() = natBits[1, natZero]
+val GoalScope.natOne: Expr get() = natBits['1', natZero]
 
 val inc by ProjectedFunction1(
     forward = { require(it is Int); it + 1 },
@@ -747,18 +763,33 @@ fun GoalScope.bitAndO(x: Expr, y: Expr, r: Expr) = table(x, y, r) { row ->
     row('1', '1', '1')
 }
 
+fun reify(expr: Expr): Any? = when(expr) {
+    natZero -> 0
+    is App -> when(expr.f) {
+        natBits -> try {
+            val base = reify(expr.args[1]) as Int
+            val cc = if(expr.args[0] == oneBit) 1 else 0
+            cc + base * 2
+        } catch (e: Exception) { expr.toString() }
+        else -> expr.toString()
+    }
+    else -> expr.toString()
+}
+
 fun main(args: Array<String>) {
     val res1 = goal {
-        val n by vars
-        val m by vars
+        var n by vars
+        var m by vars
         var r by vars
-        r = nat(14)
+        //r = nat(13)
         plusO(n, m, r)
 
     }
-    for(r in res1.take(50)) {
+    for (r in res1.take(50)) {
         println("---")
-        println(r)
+        for((k, v) in r) {
+            println("$k = ${reify(v)}")
+        }
     }
 }
 
