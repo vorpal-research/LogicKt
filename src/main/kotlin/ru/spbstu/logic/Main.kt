@@ -1,9 +1,6 @@
 package ru.spbstu.logic
 
-import ru.spbstu.logic.lib.mulO
-import ru.spbstu.logic.lib.nat
-import ru.spbstu.logic.lib.plusO
-import ru.spbstu.logic.lib.reify
+import ru.spbstu.logic.lib.*
 
 fun GoalScope.divModO(n: Expr, m: Expr, d: Expr, r: Expr) {
     scope {
@@ -25,9 +22,13 @@ fun main(args: Array<String>) {
 //    }
 
     val res1 = goal {
-        var x by vars
-        var r by vars
-        divModO(x, r, nat(13), nat(1))
+        var a by vars
+        var b by vars
+        var c by vars
+        var d by vars
+        eqlO(a, b)
+        //x = nat(3)
+
     }
     for (r in res1.take(50)) {
         println("---")

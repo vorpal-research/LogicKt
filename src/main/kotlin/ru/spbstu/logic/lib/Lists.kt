@@ -113,3 +113,20 @@ fun GoalScope.lengthIO(l: Expr, out: Expr): Unit = scope {
     )
 }
 
+fun GoalScope.lengthO(l: Expr, out: Expr): Unit = scope {
+    var l by bind(l)
+    var out by bind(out)
+    choose(
+        {
+            l = nil; out = natZero
+        },
+        {
+            val t by vars
+            val tlen by vars
+            l = cons[any(), t]
+            lengthO(t, tlen)
+            plusO(tlen, natOne, out)
+        }
+    )
+}
+

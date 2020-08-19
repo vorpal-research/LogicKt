@@ -4,6 +4,7 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.plus
 import ru.spbstu.wheels.Stack
+import ru.spbstu.wheels.memoize
 import ru.spbstu.wheels.stack
 import kotlin.reflect.KProperty
 
@@ -50,6 +51,15 @@ class GoalScope(
     }
 
     @GoalDSL
+    fun exists(body: GoalScope.(Source<Expr>) -> Unit) {
+        scope {
+            var counter = 0
+            val varStream = Source { bindVariable("\$bound${++counter}") }
+            body(varStream)
+        }
+    }
+
+    @GoalDSL
     inline fun choose(vararg goals: GoalScope.() -> Unit) {
         if (currentSolutions is SSNil) return
         val it = goals.iterator()
@@ -92,6 +102,8 @@ class GoalScope(
     }
 
     fun bind(e: Expr): BindingDelegate = BindingDelegate(e)
+    operator fun Expr.provideDelegate(thisRef: Any?, prop: KProperty<*>) =
+        bind(this).provideDelegate(thisRef, prop)
 
     fun any(): Expr = TempVar()
 

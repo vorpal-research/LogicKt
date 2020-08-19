@@ -4,27 +4,38 @@ import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.plus
 import ru.spbstu.logic.App
+import ru.spbstu.logic.Constant
 import ru.spbstu.logic.Expr
 import java.math.BigInteger
 
-fun reify(expr: Expr): Any? = when (expr) {
-    natZero -> 0.toBigInteger()
-    nil -> persistentListOf<Expr>()
-    is App -> when (expr.f) {
-        natBits -> try {
-            val base = reify(expr.args[1]) as BigInteger
-            val cc = if (expr.args[0] == oneBit) 1.toBigInteger() else 0.toBigInteger()
-            cc + base * 2.toBigInteger()
-        } catch (e: Exception) {
-            expr.toString()
+fun reifyAsNumber(expr: Expr): BigInteger? = run {
+    when (expr) {
+        natZero -> BigInteger.ZERO
+        is Constant<*> -> expr.value.toString().toBigIntegerOrNull()
+        is App -> when (expr.f) {
+            natBits -> {
+                val base = reifyAsNumber(expr.args[1]) ?: return null
+                val digit = reifyAsNumber(expr.args[0]) ?: return null
+                digit + base * 2.toBigInteger()
+            }
+            else -> null
         }
-        cons -> try {
-            val base = reify(expr.args[1]) as PersistentList<*>
-            persistentListOf(reify(expr.args[0])) + base
-        } catch (e: Exception) {
-            expr.toString()
-        }
-        else -> expr.toString()
+        else -> null
     }
-    else -> expr.toString()
 }
+
+fun reifyAsList(expr: Expr): PersistentList<*>? = run {
+    when (expr) {
+        natZero, nil -> persistentListOf<Any?>()
+        is App -> when (expr.f) {
+            natBits, cons -> {
+                val tail = reifyAsList(expr.args[1]) ?: return null
+                persistentListOf(reify(expr.args[0])) + tail
+            }
+            else -> null
+        }
+        else -> null
+    }
+}
+
+fun reify(expr: Expr): Any? = reifyAsNumber(expr) ?: reifyAsList(expr) ?: expr

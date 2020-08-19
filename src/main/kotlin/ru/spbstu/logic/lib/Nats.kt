@@ -252,6 +252,10 @@ fun GoalScope.boundMulO(q: Expr, p: Expr, n: Expr, m: Expr) {
                         n = natZero
                         m = natBits[a, z]
                         boundMulO(x, y, z, natZero)
+                    },
+                    {
+                        n = natBits[a, z]
+                        boundMulO(x, y, z, m)
                     }
                 )
             }
@@ -259,4 +263,264 @@ fun GoalScope.boundMulO(q: Expr, p: Expr, n: Expr, m: Expr) {
     }
 }
 
+/*
+(define =lo
+        (\e (n m)
+            ((((()) (()))))
+            (((((1)) ((1)))))
+            (((((a . x)) ((b . y))))
+                (poso x)
+                (poso y)
+                (=lo x y)
+            )
+        )
+)
+* */
+fun GoalScope.eqlO(n: Expr, m: Expr) {
+    scope {
+        val n by bind(n)
+        val m by bind(m)
+        match(n, m) { case ->
+            case(natZero, natZero) {}
+            case(natOne, natOne) {}
 
+            val x by vars
+            val y by vars
+            case(natBits[any(), x], natBits[any(), y]) {
+                posO(x)
+                posO(y)
+                eqlO(x, y)
+            }
+        }
+    }
+}
+
+/*
+(define <lo
+       (\e (n m)
+           ((((()) _))
+                (poso m))
+           (((((1)) _))
+                (>1o m))
+           (((((a . x)) ((b . y))))
+                (poso x) (poso y) (<lo x y))
+       )
+)
+*/
+fun GoalScope.lesslO(n: Expr, m: Expr) {
+    scope {
+        val n by bind(n)
+        val m by bind(m)
+        val x by vars
+        val y by vars
+        match(n, m) { case ->
+            case(natZero, any()) {
+                posO(m)
+            }
+            case(natOne, any()) {
+                aboveOneO(m)
+            }
+            case(natBits[any(), x], natBits[any(), y]) {
+                posO(x)
+                posO(y)
+                lesslO(x, y)
+            }
+        }
+    }
+}
+
+/*
+(define <=lo
+	(\ (n m)
+		(conde ((=lo n m)) ((<lo n m)))
+	)
+)
+*/
+fun GoalScope.lessEqlO(n: Expr, m: Expr) {
+    scope {
+        val n by n
+        val m by m
+        choose(
+            { eqlO(n, m) }, { lesslO(n, m) }
+        )
+    }
+}
+
+/*
+(define <o
+	(\ (n m)
+		(conde
+			((<lo n m))
+			((=lo n m) (exist(x)
+					(poso x)
+					(pluso n x m)
+				   )
+			)
+		)
+	)
+)
+* */
+fun GoalScope.lessO(n: Expr, m: Expr) {
+    scope {
+        val n by bind(n)
+        val m by bind(m)
+
+        choose(
+            { lesslO(n, m) },
+            {
+                eqlO(n, m)
+                val x by vars
+                posO(x)
+                plusO(n, x, m)
+            }
+        )
+    }
+}
+
+/*
+(define <=o
+	(\ (n m)
+		(conde ((== n m)) ((<o n m)))
+	)
+)
+*/
+fun GoalScope.lessEqO(n: Expr, m: Expr) {
+    scope {
+        var n by bind(n)
+        val m by bind(m)
+        choose(
+            { n = m },
+            { lessO(n, m) }
+        )
+    }
+}
+
+/*
+(define divo
+        (\ (n m q r)
+                (matche q
+                        ((())
+                                (== r n) (<o n m))
+                        (((1))
+                                (=lo n m) (pluso r m n) (<o r m))
+                        (_
+                                (<lo m n)
+                                (<o r m)
+                                (poso q)
+                                (exist (nh nl qh ql qlm qlmr rr rh)
+                                        (splito n r nl nh)
+                                        (splito q r ql qh)
+                                        (conde
+                                                (
+                                                        (== (()) nh)
+                                                        (== (()) qh)
+                                                        (minuso nl r qlm)
+                                                        (mulo ql m qlm)
+                                                )
+                                                (
+                                                        (poso nh)
+                                                        (mulo ql m qlm)
+                                                        (pluso qlm r qlmr)
+                                                        (minuso qlmr nl rr)
+                                                        (splito rr r (()) rh)
+                                                        (divo nh m qh rh)
+                                                )
+                                        )
+                                )
+                        )
+                )))
+* */
+fun GoalScope.divO(n: Expr, m: Expr, q: Expr, r: Expr) {
+    scope {
+        val n by n
+        val m by m
+        var q by q
+        var r by r
+        match(q) { case ->
+            case(natZero) {
+                r = n
+                lessO(n, m)
+            }
+            case(natOne) {
+                eqlO(n, m)
+                plusO(r, m, n)
+                lessO(r, m)
+            }
+            case(any()) {
+                lesslO(m, n)
+                lessO(r, m)
+                posO(q)
+
+                exists { (nh, nl, qh, ql, qlm, qlmr, rr, rh) ->
+                    splitO(n, r, nl, nh)
+                    splitO(q, r, ql, qh)
+                    choose(
+                        {
+                            var nh by nh
+                            var qh by qh
+                            nh = natZero
+                            qh = natZero
+                            minusO(nl, q, qlm)
+                            mulO(ql, m, qlm)
+                        },
+                        {
+                            posO(nh)
+                            mulO(ql, m, qlm)
+                            plusO(qlm, r, qlmr)
+                            minusO(qlmr, nl, rr)
+                            splitO(rr, r, natZero, rh)
+                            divO(nh, m, qh, rh)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/*
+(define splito
+        (\e (n r l h)
+            ((((()) _ (()) (()))))
+            (((((0 b . xn)) (()) (()) ((b . xn)))))
+            (((((1 . xn)) (()) ((1)) xn)))
+            (((((0 b . xn)) ((a . xr)) (()) _))
+                (splito ((b . xn)) xr (()) h))
+            (((((1 . xn)) ((a . xr)) ((1)) _))
+                (splito xn xr (()) h))
+            (((((b . xn)) ((a . xr)) ((b . xl)) _))
+                (poso xl)
+                (splito xn xr xl h))
+        )
+)
+* */
+
+fun GoalScope.splitO(n: Expr, r: Expr, l: Expr, h: Expr) {
+    scope {
+        val n by n
+        val r by r
+        val l by l
+        val h by h
+        match(n, r, l, h) { case ->
+            val a by vars
+            val b by vars
+            val xn by vars
+            val xr by vars
+            val xl by vars
+
+            case(natZero, any(), natZero, natZero) {}
+            case(natBits[zeroBit, natBits[b, xn]], natZero, natZero, natBits[b, xn]) {}
+            case(natBits[oneBit, xn], natZero, natOne, xn) {}
+            case(natBits[zeroBit, natBits[b, xn]], natBits[a, xr], natZero, any()) {
+                splitO(natBits[b, xn], xr, natZero, h)
+            }
+            case(natBits[oneBit, xn], natBits[a, xr], natOne, any()) {
+                splitO(xn, xr, natZero, h)
+            }
+            case(natBits[b, xn], natBits[a, xr], natBits[b, xl], any()) {
+                posO(xl)
+                splitO(xn, xr, xl, h)
+            }
+        }
+    }
+}

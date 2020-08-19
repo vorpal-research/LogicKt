@@ -57,13 +57,11 @@ infix fun <T> SStream<T>.mix(that: () -> SStream<T>): SStream<T> = when (this) {
 fun <T, U> SStream<T>.map(body: (T) -> U): SStream<U> = when (this) {
     is SSNil -> SSNil
     is SSCons -> SSCons(body(head)) {
-        tail.map(
-            body
-        )
+        tail.map(body)
     }
 }
 
-fun <T, U> SStream<T>.mapNotNull(body: (T) -> U?): SStream<U> = when (this) {
+fun <T, U: Any> SStream<T>.mapNotNull(body: (T) -> U?): SStream<U> = when (this) {
     is SSNil -> SSNil
     is SSCons -> run {
         var current: SStream<T> = this
@@ -105,3 +103,6 @@ fun <T> Iterator<T>.toSStream(): SStream<T> = when {
     !hasNext() -> SSNil
     else -> SSCons(next()) { toSStream() }
 }
+
+fun <T> Iterable<T>.toSStream(): SStream<T> = iterator().toSStream()
+fun <T> Sequence<T>.toSStream(): SStream<T> = iterator().toSStream()
