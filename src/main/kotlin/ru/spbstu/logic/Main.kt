@@ -26,7 +26,8 @@ fun main(args: Array<String>) {
         var b by vars
         var c by vars
         var d by vars
-        eqlO(a, b)
+        a = nat(30)
+        mulO(a, b, c)
         //x = nat(3)
 
     }

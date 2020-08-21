@@ -1,12 +1,16 @@
 package ru.spbstu.logic.lib
 
+import com.ionspin.kotlin.bignum.integer.BigInteger
+import com.ionspin.kotlin.bignum.integer.*
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.plus
 import ru.spbstu.logic.App
 import ru.spbstu.logic.Constant
 import ru.spbstu.logic.Expr
-import java.math.BigInteger
+import ru.spbstu.wheels.tryEx
+
+fun String.toBigIntegerOrNull(): BigInteger? = tryEx { toBigInteger() }.getOrNull()
 
 fun reifyAsNumber(expr: Expr): BigInteger? = run {
     when (expr) {
